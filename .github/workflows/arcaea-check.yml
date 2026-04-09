@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
 
 env:
-  # Opt into Node.js 24 to avoid warnings
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -30,28 +29,46 @@ jobs:
         id: new
         run: |
           data=$(curl -s https://webapi.lowiro.com/webapi/serve/static/bin/arcaea/apk)
-          version=$(echo "$data" | jq -r '.value.version')
-          url=$(echo "$data" | jq -r '.value.url')
+
+          echo "Raw response:"
+          echo "$data"
+
+          # check if valid JSON and success=true
+          if echo "$data" | jq -e '.success == true' >/dev/null 2>&1; then
+            version=$(echo "$data" | jq -r '.value.version')
+            url=$(echo "$data" | jq -r '.value.url')
+          else
+            echo "Invalid JSON or API failure, skipping"
+            version="unknown"
+            url=""
+          fi
 
           echo "version=$version" >> $GITHUB_OUTPUT
           echo "url=$url" >> $GITHUB_OUTPUT
 
       - name: Compare and notify
-        if: steps.old.outputs.version != steps.new.outputs.version
+        if: steps.old.outputs.version != steps.new.outputs.version && steps.new.outputs.version != 'unknown'
         env:
           VERSION: ${{ steps.new.outputs.version }}
           URL: ${{ steps.new.outputs.url }}
+          SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
         run: |
           echo "New version found!"
 
           title="【更新】Arcaea"
 
-          # Escape > in YAML by using backslash, wrap in quotes
+          # escape > in YAML
           desp="### 检测到新版本: $VERSION\n\n\> **URL**: $URL\n\n检测时间: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')"
 
-          curl "https://sctapi.ftqq.com/${{ secrets.SERVERCHAN_KEY }}.send" \
+          response=$(curl --fail -s -o /dev/null -w "%{http_code}" "https://sctapi.ftqq.com/$SERVERCHAN_KEY.send" \
             -d "title=$title" \
-            --data-urlencode "desp=$desp"
+            --data-urlencode "desp=$desp") || true
+
+          if [ "$response" != "200" ]; then
+            echo "ServerChan notification failed with HTTP code $response"
+          else
+            echo "Notification sent successfully"
+          fi
 
           echo "$VERSION" > version.txt
 
@@ -60,11 +77,9 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          # Only commit if there are changes
           if [ -n "$(git status --porcelain)" ]; then
             git add version.txt
             git commit -m "Update version to ${{ steps.new.outputs.version }}"
             git push
           else
             echo "No changes to commit"
-          fi
