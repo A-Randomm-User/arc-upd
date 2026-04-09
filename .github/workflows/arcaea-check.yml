@@ -18,25 +18,25 @@ jobs:
 
       - name: Read old version
         id: old
+        shell: bash
         run: |
           if [ -f version.txt ]; then
-            echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
+            version=$(cat version.txt)
           else
-            echo "version=none" >> $GITHUB_OUTPUT
+            version="none"
+          fi
+          echo "version=$version" >> $GITHUB_OUTPUT
 
       - name: Fetch latest version
         id: new
+        shell: bash
         run: |
           data=$(curl -s https://webapi.lowiro.com/webapi/serve/static/bin/arcaea/apk)
-
-          echo "Raw response:"
-          echo "$data"
 
           if echo "$data" | jq -e '.success == true' >/dev/null 2>&1; then
             version=$(echo "$data" | jq -r '.value.version')
             url=$(echo "$data" | jq -r '.value.url')
           else
-            echo "Invalid JSON or API failure, skipping"
             version="unknown"
             url=""
           fi
@@ -46,6 +46,7 @@ jobs:
 
       - name: Compare and notify
         if: steps.old.outputs.version != steps.new.outputs.version && steps.new.outputs.version != 'unknown'
+        shell: bash
         env:
           VERSION: ${{ steps.new.outputs.version }}
           URL: ${{ steps.new.outputs.url }}
@@ -68,6 +69,7 @@ jobs:
 
       - name: Commit new version
         if: steps.old.outputs.version != steps.new.outputs.version
+        shell: bash
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
