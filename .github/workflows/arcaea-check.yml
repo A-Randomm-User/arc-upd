@@ -55,12 +55,13 @@ jobs:
           title="【更新】Arcaea"
           desp="### 检测到新版本: $VERSION\n\n\> **URL**: $URL\n\n检测时间: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')"
 
-          response=$(curl --fail -s -o /dev/null -w "%{http_code}" "https://sctapi.ftqq.com/$SERVERCHAN_KEY.send" \
+          http_code=$(curl -s -o /dev/null -w "%{http_code}" \
             -d "title=$title" \
-            --data-urlencode "desp=$desp") || true
+            --data-urlencode "desp=$desp" \
+            "https://sctapi.ftqq.com/$SERVERCHAN_KEY.send") || true
 
-          if [ "$response" != "200" ]; then
-            echo "ServerChan notification failed with HTTP code $response"
+          if [ "$http_code" != "200" ]; then
+            echo "ServerChan notification failed with HTTP code $http_code"
           else
             echo "Notification sent successfully"
           fi
@@ -74,11 +75,13 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
 
-          CHANGES=$(git status --porcelain)
-
-          if [ -n "$CHANGES" ]; then
-            git add version.txt
-            git commit -m "Update version to ${{ steps.new.outputs.version }}"
-            git push
-          else
-            echo "No changes to commit"
+          {
+            CHANGES=$(git status --porcelain)
+            if [ -n "$CHANGES" ]; then
+              git add version.txt
+              git commit -m "Update version to ${{ steps.new.outputs.version }}"
+              git push
+            else
+              echo "No changes to commit"
+            fi
+          }
