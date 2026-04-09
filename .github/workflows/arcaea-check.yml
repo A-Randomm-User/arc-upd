@@ -5,6 +5,10 @@ on:
     - cron: "*/30 * * * *"
   workflow_dispatch:
 
+env:
+  # Opt into Node.js 24 to avoid warnings
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -42,7 +46,7 @@ jobs:
 
           title="【更新】Arcaea"
 
-          # Wrap entire message in quotes, escape > with backslash
+          # Escape > in YAML by using backslash, wrap in quotes
           desp="### 检测到新版本: $VERSION\n\n\> **URL**: $URL\n\n检测时间: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')"
 
           curl "https://sctapi.ftqq.com/${{ secrets.SERVERCHAN_KEY }}.send" \
@@ -56,6 +60,11 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add version.txt
-          git commit -m "Update version to ${{ steps.new.outputs.version }}"
-          git push
+          # Only commit if there are changes
+          if [ -n "$(git status --porcelain)" ]; then
+            git add version.txt
+            git commit -m "Update version to ${{ steps.new.outputs.version }}"
+            git push
+          else
+            echo "No changes to commit"
+          fi
