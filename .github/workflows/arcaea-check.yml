@@ -75,6 +75,7 @@ jobs:
           git config user.email "actions@github.com"
 
           CHANGES=$(git status --porcelain)
+
           if [ -n "$CHANGES" ]; then
             git add version.txt
             git commit -m "Update version to ${{ steps.new.outputs.version }}"
