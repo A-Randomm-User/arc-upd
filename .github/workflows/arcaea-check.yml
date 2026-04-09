@@ -23,7 +23,6 @@ jobs:
             echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
           else
             echo "version=none" >> $GITHUB_OUTPUT
-          fi
 
       - name: Fetch latest version
         id: new
@@ -33,7 +32,7 @@ jobs:
           echo "Raw response:"
           echo "$data"
 
-          # check if valid JSON and success=true
+          # Validate JSON and success=true
           if echo "$data" | jq -e '.success == true' >/dev/null 2>&1; then
             version=$(echo "$data" | jq -r '.value.version')
             url=$(echo "$data" | jq -r '.value.url')
@@ -53,11 +52,11 @@ jobs:
           URL: ${{ steps.new.outputs.url }}
           SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
         run: |
-          echo "New version found!"
+          echo "New version found"
 
           title="【更新】Arcaea"
 
-          # escape > in YAML
+          # Escape > for YAML
           desp="### 检测到新版本: $VERSION\n\n\> **URL**: $URL\n\n检测时间: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')"
 
           response=$(curl --fail -s -o /dev/null -w "%{http_code}" "https://sctapi.ftqq.com/$SERVERCHAN_KEY.send" \
@@ -70,6 +69,7 @@ jobs:
             echo "Notification sent successfully"
           fi
 
+          # Save new version
           echo "$VERSION" > version.txt
 
       - name: Commit new version
@@ -77,7 +77,9 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          if [ -n "$(git status --porcelain)" ]; then
+
+          CHANGES=$(git status --porcelain)
+          if [ -n "$CHANGES" ]; then
             git add version.txt
             git commit -m "Update version to ${{ steps.new.outputs.version }}"
             git push
