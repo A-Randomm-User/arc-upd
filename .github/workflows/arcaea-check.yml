@@ -32,7 +32,6 @@ jobs:
           echo "Raw response:"
           echo "$data"
 
-          # Validate JSON and success=true
           if echo "$data" | jq -e '.success == true' >/dev/null 2>&1; then
             version=$(echo "$data" | jq -r '.value.version')
             url=$(echo "$data" | jq -r '.value.url')
@@ -52,11 +51,7 @@ jobs:
           URL: ${{ steps.new.outputs.url }}
           SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
         run: |
-          echo "New version found"
-
           title="【更新】Arcaea"
-
-          # Escape > for YAML
           desp="### 检测到新版本: $VERSION\n\n\> **URL**: $URL\n\n检测时间: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')"
 
           response=$(curl --fail -s -o /dev/null -w "%{http_code}" "https://sctapi.ftqq.com/$SERVERCHAN_KEY.send" \
@@ -69,7 +64,6 @@ jobs:
             echo "Notification sent successfully"
           fi
 
-          # Save new version
           echo "$VERSION" > version.txt
 
       - name: Commit new version
