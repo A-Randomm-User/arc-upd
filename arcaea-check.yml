@@ -1,0 +1,60 @@
+name: Arcaea Update Checker
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Read old version
+        id: old
+        run: |
+          if [ -f version.txt ]; then
+            echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
+          else
+            echo "version=none" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Fetch latest version
+        id: new
+        run: |
+          data=$(curl -s https://webapi.lowiro.com/webapi/serve/static/bin/arcaea/apk)
+          version=$(echo "$data" | jq -r '.value.version')
+          url=$(echo "$data" | jq -r '.value.url')
+
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "url=$url" >> $GITHUB_OUTPUT
+
+      - name: Compare and notify
+        if: steps.old.outputs.version != steps.new.outputs.version
+        run: |
+          echo "New version found!"
+
+          title="【更新】Arcaea"
+          desp="### 检测到新版本: ${{ steps.new.outputs.version }}
+
+> **URL**: ${{ steps.new.outputs.url }}
+
+检测时间: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')"
+
+          curl "https://sctapi.ftqq.com/${{ secrets.SERVERCHAN_KEY }}.send" \
+            -d "title=$title" \
+            --data-urlencode "desp=$desp"
+
+          echo "${{ steps.new.outputs.version }}" > version.txt
+
+      - name: Commit new version
+        if: steps.old.outputs.version != steps.new.outputs.version
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add version.txt
+          git commit -m "Update version to ${{ steps.new.outputs.version }}"
+          git push
